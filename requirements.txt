@@ -3,6 +3,9 @@
 # MLflow for experiment tracking and model management (replacing Kubeflow)
 mlflow==2.9.2
 
+# Kubeflow Pipelines (for component definitions and YAML generation)
+kfp==2.4.0
+
 # Data Version Control
 dvc==3.48.0
 dvc[gdrive]==3.48.0

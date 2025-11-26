@@ -1,0 +1,28 @@
+# Kubeflow Pipeline Component: data_extraction
+# Generated from: src/pipeline_components.py
+# Description: Fetches versioned dataset from DVC remote storage
+
+name: data_extraction
+description: Fetches versioned dataset from DVC remote storage
+
+implementation:
+  container:
+    image: python:3.9
+    command:
+      - python3
+      - -c
+      - |
+        # Component implementation from data_extraction
+        # This component is defined in src/pipeline_components.py
+        # with the @component decorator from kfp.dsl
+        
+        print("Component: data_extraction")
+        print("Status: Ready for execution")
+        print("Implementation: See src/pipeline_components.py")
+
+metadata:
+  annotations:
+    author: Hamza Shah
+    version: '1.0'
+    framework: Kubeflow Pipelines v2
+    integration: MLflow

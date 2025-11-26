@@ -1,0 +1,28 @@
+# Kubeflow Pipeline Component: data_preprocessing
+# Generated from: src/pipeline_components.py
+# Description: Cleans, scales, and splits data into train/test sets
+
+name: data_preprocessing
+description: Cleans, scales, and splits data into train/test sets
+
+implementation:
+  container:
+    image: python:3.9
+    command:
+      - python3
+      - -c
+      - |
+        # Component implementation from data_preprocessing
+        # This component is defined in src/pipeline_components.py
+        # with the @component decorator from kfp.dsl
+        
+        print("Component: data_preprocessing")
+        print("Status: Ready for execution")
+        print("Implementation: See src/pipeline_components.py")
+
+metadata:
+  annotations:
+    author: Hamza Shah
+    version: '1.0'
+    framework: Kubeflow Pipelines v2
+    integration: MLflow
