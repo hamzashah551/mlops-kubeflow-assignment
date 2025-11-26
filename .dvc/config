@@ -1,0 +1,4 @@
+[core]
+    remote = local_storage
+['remote "local_storage"']
+    url = c:\Users\hp\Desktop\mlops-4\dvc-storage

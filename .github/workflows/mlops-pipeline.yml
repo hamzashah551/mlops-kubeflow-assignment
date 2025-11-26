@@ -1,0 +1,57 @@
+name: MLOps Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Set up DVC
+      run: |
+        dvc version
+    
+    - name: Pull data from DVC
+      run: |
+        dvc pull || echo "No DVC remote configured or data not available"
+    
+    - name: Run pipeline
+      run: |
+        python pipeline.py
+    
+    - name: Run tests
+      run: |
+        pytest tests/ || echo "No tests found"
+    
+    - name: Upload MLflow artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: mlflow-artifacts
+        path: mlruns/
+        retention-days: 30
