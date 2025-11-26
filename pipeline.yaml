@@ -1,0 +1,411 @@
+# PIPELINE DEFINITION
+# Name: boston-housing-pipeline
+# Description: A pipeline that trains a model on the Boston Housing dataset.
+# Inputs:
+#    data_path: str [Default: 'data/raw/boston_housing.csv']
+#    max_depth: int [Default: 10.0]
+#    n_estimators: int [Default: 100.0]
+#    random_state: int [Default: 42.0]
+#    test_size: float [Default: 0.2]
+components:
+  comp-data-extraction:
+    executorLabel: exec-data-extraction
+    inputDefinitions:
+      parameters:
+        data_path:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        output_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        num_features:
+          parameterType: NUMBER_INTEGER
+        num_samples:
+          parameterType: NUMBER_INTEGER
+  comp-data-preprocessing:
+    executorLabel: exec-data-preprocessing
+    inputDefinitions:
+      artifacts:
+        input_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        random_state:
+          parameterType: NUMBER_INTEGER
+        test_size:
+          parameterType: NUMBER_DOUBLE
+    outputDefinitions:
+      artifacts:
+        test_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        train_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        num_features:
+          parameterType: NUMBER_INTEGER
+        test_samples:
+          parameterType: NUMBER_INTEGER
+        train_samples:
+          parameterType: NUMBER_INTEGER
+  comp-model-evaluation:
+    executorLabel: exec-model-evaluation
+    inputDefinitions:
+      artifacts:
+        model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+        test_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+      parameters:
+        accuracy:
+          parameterType: NUMBER_DOUBLE
+        f1_score:
+          parameterType: NUMBER_DOUBLE
+        precision:
+          parameterType: NUMBER_DOUBLE
+        recall:
+          parameterType: NUMBER_DOUBLE
+  comp-model-training:
+    executorLabel: exec-model-training
+    inputDefinitions:
+      artifacts:
+        train_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+      parameters:
+        max_depth:
+          parameterType: NUMBER_INTEGER
+        n_estimators:
+          parameterType: NUMBER_INTEGER
+        random_state:
+          parameterType: NUMBER_INTEGER
+    outputDefinitions:
+      artifacts:
+        model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+      parameters:
+        model_name:
+          parameterType: STRING
+        num_trees:
+          parameterType: NUMBER_INTEGER
+        training_accuracy:
+          parameterType: NUMBER_DOUBLE
+deploymentSpec:
+  executors:
+    exec-data-extraction:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - data_extraction
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'dvc==3.48.0'\
+          \ 'pandas==2.1.4' 'mlflow==2.9.2'  &&  python3 -m pip install --quiet --no-warn-script-location\
+          \ 'kfp==2.15.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"\
+          3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef data_extraction(\n    data_path: str,\n    output_data: Output[Dataset]\n\
+          ) -> NamedTuple('Outputs', [('num_samples', int), ('num_features', int)]):\n\
+          \    \"\"\"Data Extraction Component\"\"\"\n    import pandas as pd\n  \
+          \  import os\n    from collections import namedtuple\n    import numpy as\
+          \ np\n\n    # Check if data file exists\n    if os.path.exists(data_path):\n\
+          \        df = pd.read_csv(data_path)\n    else:\n        # Create sample\
+          \ data\n        np.random.seed(42)\n        n_samples = 506\n        df\
+          \ = pd.DataFrame({\n            'CRIM': np.random.exponential(3.61, n_samples),\n\
+          \            'ZN': np.random.choice([0, 12.5, 25, 50, 75, 100], n_samples),\n\
+          \            'INDUS': np.random.gamma(2, 5.5, n_samples),\n            'CHAS':\
+          \ np.random.choice([0, 1], n_samples, p=[0.93, 0.07]),\n            'NOX':\
+          \ np.random.beta(2, 2, n_samples) * 0.5 + 0.3,\n            'RM': np.random.normal(6.28,\
+          \ 0.7, n_samples),\n            'AGE': np.random.beta(2, 1, n_samples) *\
+          \ 100,\n            'DIS': np.random.gamma(2, 2, n_samples),\n         \
+          \   'RAD': np.random.choice(range(1, 25), n_samples),\n            'TAX':\
+          \ np.random.normal(408, 168, n_samples),\n            'PTRATIO': np.random.normal(18.5,\
+          \ 2.2, n_samples),\n            'B': np.random.beta(10, 1, n_samples) *\
+          \ 400,\n            'LSTAT': np.random.gamma(2, 6, n_samples),\n       \
+          \ })\n        # Generate target\n        medv = (50 + 8 * (df['RM'] - 6)\
+          \ - 2 * np.log1p(df['CRIM']) - 0.5 * df['LSTAT'] + 5 * df['CHAS'] - 0.3\
+          \ * df['AGE'] / 10 + np.random.normal(0, 5, n_samples)).clip(5, 50)\n  \
+          \      df['TARGET'] = (medv > medv.median()).astype(int)\n\n    # Save extracted\
+          \ data\n    os.makedirs(os.path.dirname(output_data.path), exist_ok=True)\n\
+          \    df.to_csv(output_data.path, index=False)\n\n    outputs = namedtuple('Outputs',\
+          \ ['num_samples', 'num_features'])\n    return outputs(len(df), len(df.columns)-1)\n\
+          \n"
+        image: python:3.9
+    exec-data-preprocessing:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - data_preprocessing
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'pandas==2.1.4'\
+          \ 'scikit-learn==1.3.2' 'numpy==1.26.2' 'mlflow==2.9.2'  &&  python3 -m\
+          \ pip install --quiet --no-warn-script-location 'kfp==2.15.1' '--no-deps'\
+          \ 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\
+          \n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef data_preprocessing(\n    input_data: Input[Dataset],\n    test_size:\
+          \ float,\n    random_state: int,\n    train_data: Output[Dataset],\n   \
+          \ test_data: Output[Dataset]\n) -> NamedTuple('Outputs', [('train_samples',\
+          \ int), ('test_samples', int), ('num_features', int)]):\n    \"\"\"Data\
+          \ Preprocessing Component\"\"\"\n    import pandas as pd\n    from sklearn.model_selection\
+          \ import train_test_split\n    from sklearn.preprocessing import StandardScaler\n\
+          \    from collections import namedtuple\n    import os\n\n    df = pd.read_csv(input_data.path)\n\
+          \    df = df.fillna(df.mean())\n\n    target_col = 'TARGET' if 'TARGET'\
+          \ in df.columns else 'MEDV'\n    if target_col == 'MEDV':\n        df['TARGET']\
+          \ = (df['MEDV'] > df['MEDV'].median()).astype(int)\n        df = df.drop(columns=['MEDV'])\n\
+          \        target_col = 'TARGET'\n\n    X = df.drop(columns=[target_col])\n\
+          \    y = df[target_col]\n\n    X_train, X_test, y_train, y_test = train_test_split(X,\
+          \ y, test_size=test_size, random_state=random_state, stratify=y)\n\n   \
+          \ scaler = StandardScaler()\n    X_train_scaled = scaler.fit_transform(X_train)\n\
+          \    X_test_scaled = scaler.transform(X_test)\n\n    X_train_df = pd.DataFrame(X_train_scaled,\
+          \ columns=X.columns)\n    X_test_df = pd.DataFrame(X_test_scaled, columns=X.columns)\n\
+          \    X_train_df['TARGET'] = y_train.values\n    X_test_df['TARGET'] = y_test.values\n\
+          \n    os.makedirs(os.path.dirname(train_data.path), exist_ok=True)\n   \
+          \ os.makedirs(os.path.dirname(test_data.path), exist_ok=True)\n    X_train_df.to_csv(train_data.path,\
+          \ index=False)\n    X_test_df.to_csv(test_data.path, index=False)\n\n  \
+          \  outputs = namedtuple('Outputs', ['train_samples', 'test_samples', 'num_features'])\n\
+          \    return outputs(len(X_train_df), len(X_test_df), len(X.columns))\n\n"
+        image: python:3.9
+    exec-model-evaluation:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - model_evaluation
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'scikit-learn==1.3.2'\
+          \ 'pandas==2.1.4' 'joblib==1.3.2' 'mlflow==2.9.2'  &&  python3 -m pip install\
+          \ --quiet --no-warn-script-location 'kfp==2.15.1' '--no-deps' 'typing-extensions>=3.7.4,<5;\
+          \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef model_evaluation(\n    model: Input[Model],\n    test_data: Input[Dataset],\n\
+          \    metrics: Output[Metrics]\n) -> NamedTuple('Outputs', [('accuracy',\
+          \ float), ('f1_score', float), ('precision', float), ('recall', float)]):\n\
+          \    \"\"\"Model Evaluation Component\"\"\"\n    import pandas as pd\n \
+          \   import joblib\n    from sklearn.metrics import accuracy_score, f1_score,\
+          \ precision_score, recall_score, confusion_matrix\n    import json\n   \
+          \ import os\n    from collections import namedtuple\n\n    trained_model\
+          \ = joblib.load(model.path + '.pkl')\n    test_df = pd.read_csv(test_data.path)\n\
+          \    X_test = test_df.drop(columns=['TARGET'])\n    y_test = test_df['TARGET']\n\
+          \n    y_pred = trained_model.predict(X_test)\n\n    accuracy = accuracy_score(y_test,\
+          \ y_pred)\n    f1 = f1_score(y_test, y_pred, average='weighted')\n    precision\
+          \ = precision_score(y_test, y_pred, average='weighted')\n    recall = recall_score(y_test,\
+          \ y_pred, average='weighted')\n\n    metrics_dict = {'accuracy': float(accuracy),\
+          \ 'f1_score': float(f1), 'precision': float(precision), 'recall': float(recall)}\n\
+          \n    os.makedirs(os.path.dirname(metrics.path), exist_ok=True)\n    with\
+          \ open(metrics.path, 'w') as f:\n        json.dump(metrics_dict, f)\n\n\
+          \    outputs = namedtuple('Outputs', ['accuracy', 'f1_score', 'precision',\
+          \ 'recall'])\n    return outputs(accuracy, f1, precision, recall)\n\n"
+        image: python:3.9
+    exec-model-training:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - model_training
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'scikit-learn==1.3.2'\
+          \ 'pandas==2.1.4' 'joblib==1.3.2' 'mlflow==2.9.2'  &&  python3 -m pip install\
+          \ --quiet --no-warn-script-location 'kfp==2.15.1' '--no-deps' 'typing-extensions>=3.7.4,<5;\
+          \ python_version<\"3.9\"' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef model_training(\n    train_data: Input[Dataset],\n    n_estimators:\
+          \ int,\n    max_depth: int,\n    random_state: int,\n    model: Output[Model]\n\
+          ) -> NamedTuple('Outputs', [('model_name', str), ('training_accuracy', float),\
+          \ ('num_trees', int)]):\n    \"\"\"Model Training Component\"\"\"\n    import\
+          \ pandas as pd\n    from sklearn.ensemble import RandomForestClassifier\n\
+          \    from sklearn.metrics import accuracy_score\n    import joblib\n   \
+          \ import os\n    from collections import namedtuple\n\n    train_df = pd.read_csv(train_data.path)\n\
+          \    X_train = train_df.drop(columns=['TARGET'])\n    y_train = train_df['TARGET']\n\
+          \n    rf_model = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth,\
+          \ random_state=random_state, n_jobs=-1)\n    rf_model.fit(X_train, y_train)\n\
+          \n    training_accuracy = accuracy_score(y_train, rf_model.predict(X_train))\n\
+          \n    os.makedirs(os.path.dirname(model.path), exist_ok=True)\n    joblib.dump(rf_model,\
+          \ model.path + '.pkl')\n\n    outputs = namedtuple('Outputs', ['model_name',\
+          \ 'training_accuracy', 'num_trees'])\n    return outputs(f\"random_forest_n{n_estimators}\"\
+          , training_accuracy, n_estimators)\n\n"
+        image: python:3.9
+pipelineInfo:
+  description: A pipeline that trains a model on the Boston Housing dataset.
+  name: boston-housing-pipeline
+root:
+  dag:
+    tasks:
+      data-extraction:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-data-extraction
+        inputs:
+          parameters:
+            data_path:
+              componentInputParameter: data_path
+        taskInfo:
+          name: data-extraction
+      data-preprocessing:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-data-preprocessing
+        dependentTasks:
+        - data-extraction
+        inputs:
+          artifacts:
+            input_data:
+              taskOutputArtifact:
+                outputArtifactKey: output_data
+                producerTask: data-extraction
+          parameters:
+            random_state:
+              componentInputParameter: random_state
+            test_size:
+              componentInputParameter: test_size
+        taskInfo:
+          name: data-preprocessing
+      model-evaluation:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-model-evaluation
+        dependentTasks:
+        - data-preprocessing
+        - model-training
+        inputs:
+          artifacts:
+            model:
+              taskOutputArtifact:
+                outputArtifactKey: model
+                producerTask: model-training
+            test_data:
+              taskOutputArtifact:
+                outputArtifactKey: test_data
+                producerTask: data-preprocessing
+        taskInfo:
+          name: model-evaluation
+      model-training:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-model-training
+        dependentTasks:
+        - data-preprocessing
+        inputs:
+          artifacts:
+            train_data:
+              taskOutputArtifact:
+                outputArtifactKey: train_data
+                producerTask: data-preprocessing
+          parameters:
+            max_depth:
+              componentInputParameter: max_depth
+            n_estimators:
+              componentInputParameter: n_estimators
+            random_state:
+              componentInputParameter: random_state
+        taskInfo:
+          name: model-training
+  inputDefinitions:
+    parameters:
+      data_path:
+        defaultValue: data/raw/boston_housing.csv
+        isOptional: true
+        parameterType: STRING
+      max_depth:
+        defaultValue: 10.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      n_estimators:
+        defaultValue: 100.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      random_state:
+        defaultValue: 42.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      test_size:
+        defaultValue: 0.2
+        isOptional: true
+        parameterType: NUMBER_DOUBLE
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.15.1
