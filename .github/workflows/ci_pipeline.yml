@@ -1,0 +1,55 @@
+name: MLOps Pipeline CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Stage 1: Environment Setup
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        # Explicitly install dvc and kfp if not in requirements (just to be safe)
+        pip install dvc kfp mlflow pandas scikit-learn
+        
+    # Stage 2: Pipeline Compilation
+    - name: Compile Pipeline Components
+      run: |
+        echo "Compiling Kubeflow pipeline components..."
+        python compile_components.py
+        
+    - name: Verify Component YAMLs
+      run: |
+        echo "Verifying generated YAML files..."
+        ls -l components/*.yaml
+        
+    # Stage 3: Pipeline Execution
+    - name: Run MLflow Pipeline
+      run: |
+        echo "Running MLflow pipeline..."
+        # We use a dummy data path or ensure the script handles missing data gracefully
+        # Since we can't easily pull DVC data in CI without credentials, 
+        # our pipeline script has a fallback to generate sample data.
+        python pipeline.py
+        
+    - name: Verify Pipeline Artifacts
+      run: |
+        echo "Verifying pipeline artifacts..."
+        ls -l pipeline.yaml
+        if [ -d "mlruns" ]; then echo "MLflow runs found"; else echo "MLflow runs NOT found"; exit 1; fi
