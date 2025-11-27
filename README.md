@@ -1,113 +1,117 @@
-# MLOps Assignment - MLflow & DVC Pipeline
+# Boston Housing Prediction Pipeline (MLOps Assignment)
 
-This project demonstrates MLOps best practices using MLflow for experiment tracking and model management, DVC for data versioning, and Docker for containerization.
+This repository contains an end-to-end MLOps pipeline for predicting Boston Housing prices. It demonstrates a hybrid approach using **Kubeflow Pipelines (KFP)** for pipeline definition and **MLflow** for local execution and experiment tracking.
 
-## 🎯 Project Overview
+## 🚀 Project Overview
 
-This assignment implements a complete ML pipeline for the Boston Housing dataset with:
-- **MLflow**: Experiment tracking, model registry, and pipeline orchestration
-- **DVC**: Data version control and management
-- **Docker**: Containerized components
-- **GitHub Actions**: CI/CD automation
+The goal is to build a reproducible ML pipeline that predicts housing prices based on various features (crime rate, number of rooms, etc.).
 
-## 📁 Project Structure
+**Key Features:**
+*   **Data Versioning**: DVC is used to track the dataset.
+*   **Pipeline Definition**: Components are defined using Kubeflow DSL (`@component`).
+*   **Experiment Tracking**: MLflow tracks runs, parameters, metrics, and models.
+*   **CI/CD**: GitHub Actions automates testing and pipeline compilation.
+*   **Containerization**: Docker support for reproducible environments.
+
+---
+
+## 🛠️ Setup Instructions
+
+### Prerequisites
+*   Python 3.9+
+*   Git
+*   (Optional) Docker
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/hamzashah551/mlops-kubeflow-assignment.git
+cd mlops-kubeflow-assignment
+```
+
+### 2. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Set up DVC
+The data is versioned with DVC. To pull the data from the remote storage:
+```bash
+dvc pull
+```
+*Note: The remote storage is configured as a local folder. Ensure you have access to the configured path.*
+
+---
+
+## 🏃‍♂️ Pipeline Walkthrough
+
+### Option A: Run Locally with MLflow (Recommended)
+This executes the pipeline steps (Extraction -> Preprocessing -> Training -> Evaluation) locally and logs results to MLflow.
+
+1.  **Run the pipeline script:**
+    ```bash
+    python pipeline.py
+    ```
+
+2.  **View Results in MLflow UI:**
+    ```bash
+    mlflow ui
+    ```
+    Open [http://localhost:5000](http://localhost:5000) in your browser.
+
+### Option B: Compile for Kubeflow
+To generate the `pipeline.yaml` file for deployment to a Kubeflow cluster:
+
+1.  **Run the compilation script:**
+    ```bash
+    python compile_components.py
+    ```
+    *This generates individual component YAMLs in `components/`.*
+
+2.  **Compile the full pipeline:**
+    ```bash
+    python pipeline.py
+    ```
+    *This generates `pipeline.yaml` in the root directory.*
+
+### Option C: CI/CD Pipeline
+Every push to the `main` branch triggers a GitHub Actions workflow that:
+1.  Sets up the environment.
+2.  Compiles components to verify syntax.
+3.  Runs the pipeline locally to verify functionality.
+
+Check the **Actions** tab in GitHub to see the run history.
+
+---
+
+## 📂 Project Structure
 
 ```
 mlops-kubeflow-assignment/
-├── data/
-│   ├── raw/              # Raw data tracked by DVC
-│   └── processed/        # Processed data
-├── src/
-│   ├── pipeline_components.py  # MLflow component definitions
-│   └── model_training.py       # Training script
-├── components/           # Compiled components
-├── pipeline.py          # Main MLflow pipeline
-├── requirements.txt     # Python dependencies
-├── Dockerfile          # Container image definition
-├── .github/
-│   └── workflows/      # GitHub Actions workflows
-└── README.md
+├── .github/workflows/      # CI/CD Pipeline (GitHub Actions)
+├── components/             # Compiled Kubeflow Component YAMLs
+├── data/                   # Data directory (tracked by DVC)
+├── src/                    # Source code
+│   ├── pipeline_components.py  # Component definitions (KFP + Python)
+│   ├── model_training.py       # Standalone training script
+│   └── ...
+├── compile_components.py   # Script to compile components
+├── pipeline.py             # Main pipeline definition & execution script
+├── pipeline.yaml           # Compiled Kubeflow Pipeline
+├── requirements.txt        # Python dependencies
+├── Dockerfile              # Docker environment
+└── README.md               # Project documentation
 ```
 
-## 🚀 Getting Started
+---
 
-### Prerequisites
+## 📊 Components
 
-- Python 3.8+
-- Git
-- DVC
-- Docker (optional)
+1.  **Data Extraction**: Loads data from DVC-tracked storage.
+2.  **Data Preprocessing**: Cleans missing values, scales features, and splits into train/test sets.
+3.  **Model Training**: Trains a Random Forest Regressor/Classifier.
+4.  **Model Evaluation**: Calculates accuracy/R2 score and logs metrics.
 
-### Installation
+---
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/hamzashah551/mlops-kubeflow-assignment.git
-   cd mlops-kubeflow-assignment
-   ```
-
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Pull data from DVC**
-   ```bash
-   dvc pull
-   ```
-
-## 📊 Usage
-
-### Run the Pipeline
-
-```bash
-python pipeline.py
-```
-
-### View MLflow UI
-
-```bash
-mlflow ui
-```
-
-Then open http://localhost:5000 in your browser.
-
-### DVC Commands
-
-```bash
-# Check data status
-dvc status
-
-# Pull data from remote
-dvc pull
-
-# Push data to remote
-dvc push
-```
-
-## 🧪 Testing
-
-```bash
-pytest tests/
-```
-
-## 📝 Assignment Tasks
-
-- [x] Task 1: Project Initialization and Data Versioning
-- [ ] Task 2: TBD
-- [ ] Task 3: TBD
-
-## 👤 Author
-
-**Hamza Shah**
-- GitHub: [@hamzashah551](https://github.com/hamzashah551)
-
-## 📄 License
-
-This project is for educational purposes as part of an MLOps assignment.
+## 📝 License
+This project is part of an MLOps assignment.
